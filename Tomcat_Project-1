@@ -1,0 +1,71 @@
+# Devops_Project Depoly Application in Different Tomcat Environment 
+pipeline {
+    agent any
+    stages{
+        stage('clone'){
+            steps{
+                git 'https://github.com/Singareddy-Venkatesh/dockerjenkin.git'
+            }
+        }
+         stage('package'){
+            steps{
+                sh 'mvn package'
+            }
+        }
+        stage('deploy-dev'){
+            steps{
+                deploy adapters: [tomcat9(credentialsId: 'tomcat', path: '', url: 'http://54.173.115.105:8081')], contextPath: 'dev', war: '**/*.war'
+            }
+        }
+        stage('dev'){
+            steps{
+                input (
+                    message: 'do u want to proceed', 
+                    parameters: [booleanParam(defaultValue: true, description: 'do u proceed', name: 'dev')]
+                    )
+            }
+        }
+         stage('depoly-test'){
+            steps{
+                deploy adapters: [tomcat9(credentialsId: 'tomcat', path: '', url: 'http://54.227.67.116:8081')], contextPath: 'test', war: '**/*.war'
+            }
+        }
+  stage('test'){
+            steps{
+                input (
+                    message: 'do u want to proceed', 
+                    parameters: [booleanParam(defaultValue: true, description: 'do u proceed', name: 'dev')]
+                    
+                   )
+            }
+        }
+        stage('depoly-preprod'){
+            steps{
+                deploy adapters: [tomcat9(credentialsId: 'tomcat', path: '', url: 'http://54.152.153.114:8081')], contextPath: 'preprod', war: '**/*.war'
+            }
+        }
+        stage('preprod'){
+            steps{
+                input (
+                    message: 'do u want to proceed', 
+                    parameters: [booleanParam(defaultValue: true, description: 'do u proceed', name: 'dev')]
+                    )
+            }
+        }
+        stage('depoly-prod'){
+            steps{
+                deploy adapters: [tomcat9(credentialsId: 'tomcat', path: '', url: 'http://54.160.185.210:8081')], contextPath: 'prod', war: '**/*.war'
+            }
+        }
+        stage('prod'){
+            steps{
+                input (
+                    message: 'do u want to proceed', 
+                    parameters: [booleanParam(defaultValue: true, description: 'do u proceed', name: 'dev')]
+                    )
+            }
+        }
+    }
+}
+
+

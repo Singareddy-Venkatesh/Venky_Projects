@@ -1,0 +1,70 @@
+# DEVSECOPS-Project-2-Deploy to Tomcat
+pipeline{
+    agent any
+    tools {
+        jdk 'jdk17'
+        maven 'maven3'
+    }
+    environment {
+        SCANNER_HOME=tool 'sonar-scanner'
+    }
+    stages{
+        stage ('clean Workspace'){
+            steps{
+                cleanWs()
+            }
+        }
+        stage ('checkout scm') {
+            steps {
+                git 'https://github.com/Aj7Ay/jpetstore-6.git'
+            }
+        }
+        stage ('maven compile') {
+            steps {
+                sh 'mvn clean compile'
+            }
+        }
+        stage ('maven Test') {
+            steps {
+                sh 'mvn test'
+            }
+        }
+        stage("Sonarqube Analysis "){
+            steps{
+                withSonarQubeEnv('sonar-server') {
+                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Petshop \
+                    -Dsonar.java.binaries=. \
+                    -Dsonar.projectKey=Petshop '''
+                }
+            }
+        }
+        stage("quality gate"){
+            steps {
+                script {
+                  waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token' 
+                }
+           }
+        }
+        stage("maven package"){
+            steps {
+                sh 'mvn package'
+            }
+        }
+        stage("OWASP Dependency Check"){
+            steps{
+                dependencyCheck additionalArguments: '--scan ./ --format XML ', odcInstallation: 'Dependency-Check'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            }
+        }
+        stage("nexus artifactory"){
+            steps{
+                nexusArtifactUploader artifacts: [[artifactId: 'jpetstore', classifier: '', file: '/var/lib/jenkins/workspace/Devsecops-project-2/target/jpetstore.war', type: 'war']], credentialsId: '', groupId: 'org.mybatis', nexusUrl: '', nexusVersion: 'nexus2', protocol: 'http', repository: 'maven-snapshots', version: '6.1.1-SNAPSHOT'
+            }
+        }
+        stage('Deploy to Tomcat'){
+            steps{
+                deploy adapters: [tomcat9(credentialsId: 'tomcat', path: '', url: 'http://107.21.164.148:8083')], contextPath: null, war: '**/*.war'
+            }
+        }
+    }
+}
